@@ -35,38 +35,40 @@
 <body>
   <script src="flutter_bootstrap.js" async></script>
   <script>
-    let handler = null;
-    async function requestMotionPermission() {
-      if (typeof DeviceMotionEvent !== "undefined" &&
-          typeof DeviceMotionEvent.requestPermission === "function") {
-        const res = await DeviceMotionEvent.requestPermission();
-        if (res !== "granted") throw new Error("Motion permission denied");
-      }
-    };
-    function startMotion(onData) {
-      stopMotion();
-      _handler = (e) => {
-        const a = e.accelerationIncludingGravity;
-        if (!a) return;
-        onData(a.x ?? 0, a.y ?? 0, a.z ?? 0, Date.now());
-      };
+  let _handler = null;
+
+  async function requestMotionPermission() {
+    // iOS Safari は許可が必要
+    if (typeof DeviceMotionEvent !== "undefined" &&
+        typeof DeviceMotionEvent.requestPermission === "function") {
+      const res = await DeviceMotionEvent.requestPermission();
+      return res; // 'granted' / 'denied'
     }
-    {
-      const a = e.accelerationIncludingGravity;
-      if (!a) return;
-      onData(a.x ?? 0, a.y ?? 0, a.z ?? 0, Date.now());
+    // それ以外は許可不要扱い
+    return "granted";
+  }
+
+  function startMotion(onData) {
+    stopMotion(); // 二重登録防止
+
+    _handler = (e) => {
+      const a = e.accelerationIncludingGravity || e.acceleration;
+      if (!a) return; // ← これは関数内なのでOK
+
+      onData(a.x ?? 0, a.y ?? 0, a.z ?? 0, e.timeStamp ?? Date.now());
     };
-    function stopMotion() {
-      if (_handler) {
-        window.removeEventListener("devicemotion", _handler);
-        _handler = null;
-      }
+
+    window.addEventListener("devicemotion", _handler, { passive: true });
+  }
+
+  function stopMotion() {
+    if (_handler) {
+      window.removeEventListener("devicemotion", _handler);
+      _handler = null;
     }
-    window.ManpoKei = {
-      requestMotionPermission,
-      startMotion,
-      stopMotion
-    };
+  }
+
+  window.ManpoKei = { requestMotionPermission, startMotion, stopMotion };
   </script>
 </body>
 </html>
